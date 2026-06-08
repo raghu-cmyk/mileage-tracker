@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Vehicles</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if success %}<div class="success">{{ success }}</div>{% endif %}
+<div class="actions">
+  <a class="button" href="/vehicles/new">Add vehicle</a>
+  {% if show_archived %}
+  <a class="button secondary" href="/vehicles">Hide archived</a>
+  {% else %}
+  <a class="button secondary" href="/vehicles?archived=1">Show archived</a>
+  {% endif %}
+</div>
+{% if vehicles %}
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for vehicle in vehicles %}
+    <tr>
+      <td><a href="/vehicles/{{ vehicle.id }}">{{ vehicle.display_name }}</a></td>
+      <td>{{ vehicle.description or "—" }}</td>
+      <td>
+        {% if vehicle.is_archived %}
+        <span class="badge archived">Archived</span>
+        {% else %}
+        <span class="badge">Active</span>
+        {% endif %}
+      </td>
+      <td><a href="/vehicles/{{ vehicle.id }}/edit">Edit</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No vehicles to display.</p>
+{% endif %}
+{% endblock %}

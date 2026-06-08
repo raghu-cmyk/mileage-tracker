@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+<p>Welcome, <strong>{{ user.username }}</strong>. You are authenticated.</p>
+<p class="muted" style="text-align:left;">Vehicle and trip management will be added in later features. This slice delivers session-based authentication with server-side authorization.</p>
+<form method="post" action="/logout">
+  <button type="submit">Log out</button>
+</form>
+{% endblock %}

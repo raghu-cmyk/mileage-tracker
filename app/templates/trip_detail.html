@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if success %}<div class="success">{{ success }}</div>{% endif %}
+
+<dl>
+  <dt>Trip date</dt>
+  <dd>{{ trip.trip_date.isoformat() }}</dd>
+
+  <dt>Origin</dt>
+  <dd>{{ trip.origin }}</dd>
+
+  <dt>Destination</dt>
+  <dd>{{ trip.destination }}</dd>
+
+  <dt>Business purpose</dt>
+  <dd>{{ trip.business_purpose }}</dd>
+
+  <dt>Miles</dt>
+  <dd>{{ trip.miles }}</dd>
+
+  <dt>Category</dt>
+  <dd>{{ trip.category.display_name }} ({{ trip.category.code }})</dd>
+
+  <dt>Vehicle</dt>
+  <dd><a href="/vehicles/{{ trip.vehicle.id }}">{{ trip.vehicle.display_name }}</a></dd>
+
+  {% if trip.odometer_start is not none %}
+  <dt>Odometer start</dt>
+  <dd>{{ trip.odometer_start }}</dd>
+  {% endif %}
+
+  {% if trip.odometer_end is not none %}
+  <dt>Odometer end</dt>
+  <dd>{{ trip.odometer_end }}</dd>
+  {% endif %}
+
+  <dt>Recorded at</dt>
+  <dd>{{ trip.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+
+  <dt>Contemporaneousness</dt>
+  <dd>
+    {% if trip.is_late_entered() %}
+    <span class="badge late">Late-entered</span> — entered more than 7 days after the trip date.
+    {% else %}
+    <span class="badge">On time</span>
+    {% endif %}
+  </dd>
+</dl>
+
+<style>
+  dl { display: grid; grid-template-columns: 10rem 1fr; gap: .5rem 1rem; }
+  dt { font-weight: 600; color: #64748b; }
+  dd { margin: 0; }
+</style>
+
+<div class="actions">
+  <a class="button" href="/trips/{{ trip.id }}/edit">Edit</a>
+  <a class="button danger" href="/trips/{{ trip.id }}/delete">Delete</a>
+  <a class="button secondary" href="/trips">Back to trips</a>
+</div>
+{% endblock %}

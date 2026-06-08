@@ -1,6 +1,6 @@
 # Mileage Tracker
 
-Single-user web app for IRS-grade mileage substantiation. This branch adds trip categories and time-effective IRS mileage rate reference data (issue #4) on top of authentication, vehicles, and trip management (issues #1–#3).
+Single-user web app for IRS-grade mileage substantiation. This branch adds deduction calculation and year-end summary reporting (issue #5) on top of authentication, vehicles, trip management, and time-effective mileage rates (issues #1–#4).
 
 ## Run locally
 
@@ -12,6 +12,15 @@ python run.py
 ```
 
 Visit http://127.0.0.1:8000 — register the sole user, sign in, then manage vehicles and trips.
+
+## Deduction calculation and year-end summary (issue #5)
+
+- Per-trip deduction = `miles × resolved_rate` using exact integer-cent arithmetic (no floating-point drift)
+- Year summary for a selected tax year shows total miles, miles by category, deductible total, business-use percentage, and late-entered trip count
+- Personal-category miles are excluded from deductions and reported separately
+- Business-use percentage = deductible miles ÷ total logged miles
+- Ambiguous or missing rate resolution blocks calculation with an explicit error
+- UI at `/summary`; JSON API at `/api/summary/{tax_year}`
 
 ## Trip categories and mileage rates (issue #4)
 

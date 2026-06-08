@@ -21,7 +21,9 @@ from .auth import (
     require_authenticated_user,
 )
 from .categories import list_categories, seed_trip_categories
-from .rates import seed_mileage_rates
+from .deductions import compute_year_summary, format_cents
+from .exceptions import RateResolutionError
+from .rates import seed_mileage_rates, rate_cents_per_mile_decimal
 from .database import Base, SessionLocal, engine, get_db
 from .exceptions import MileageTrackerError
 from .models import User
@@ -41,7 +43,7 @@ from .vehicles import (
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-app = FastAPI(title="Mileage Tracker", version="0.4.0")
+app = FastAPI(title="Mileage Tracker", version="0.5.0")
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-only-change-in-production"),
@@ -106,6 +108,19 @@ def _parse_optional_date(raw: Optional[str]) -> Optional[date]:
         return date.fromisoformat(raw.strip())
     except ValueError:
         return None
+
+
+def _format_rate(rate_cents_per_mile: int) -> str:
+    return str(rate_cents_per_mile_decimal(rate_cents_per_mile).normalize())
+
+
+templates.env.globals["format_cents"] = format_cents
+templates.env.globals["format_rate"] = _format_rate
+
+
+def _available_tax_years() -> list[int]:
+    current = datetime.now().year
+    return list(range(current, current - 6, -1))
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -365,6 +380,68 @@ def vehicle_odometer_submit(
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/summary", response_class=HTMLResponse)
+def year_summary_page(request: Request, db: Session = Depends(get_db)):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    tax_year = _parse_optional_int(request.query_params.get("tax_year")) or datetime.now().year
+    available_years = _available_tax_years()
+    try:
+        summary = compute_year_summary(db, tax_year)
+    except RateResolutionError as exc:
+        return templates.TemplateResponse(
+            request,
+            "year_summary.html",
+            {
+                "user": user,
+                "title": f"Year-end summary {tax_year}",
+                "summary": None,
+                "tax_year": tax_year,
+                "available_years": available_years,
+                "error": exc.message,
+            },
+        )
+    return templates.TemplateResponse(
+        request,
+        "year_summary.html",
+        {
+            "user": user,
+            "title": f"Year-end summary {tax_year}",
+            "summary": summary,
+            "tax_year": tax_year,
+            "available_years": available_years,
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
+@app.get("/api/summary/{tax_year}")
+def year_summary_api(tax_year: int, db: Session = Depends(get_db)):
+    summary = compute_year_summary(db, tax_year)
+    return {
+        "tax_year": summary.tax_year,
+        "total_miles": str(summary.total_miles),
+        "deductible_miles": str(summary.deductible_miles),
+        "personal_miles": str(summary.personal_miles),
+        "total_deduction_cents": summary.total_deduction_cents,
+        "business_use_percentage": (
+            str(summary.business_use_percentage) if summary.business_use_percentage is not None else None
+        ),
+        "late_entered_count": summary.late_entered_count,
+        "by_category": [
+            {
+                "category_code": row.category_code,
+                "display_name": row.display_name,
+                "is_deductible": row.is_deductible,
+                "total_miles": str(row.total_miles),
+                "total_deduction_cents": row.total_deduction_cents,
+            }
+            for row in summary.by_category
+        ],
+    }
 
 
 @app.get("/trips", response_class=HTMLResponse)

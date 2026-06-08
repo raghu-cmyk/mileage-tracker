@@ -2,7 +2,37 @@
 {% block content %}
 <h1>Dashboard</h1>
 <p>Welcome, <strong>{{ user.username }}</strong>.</p>
-<p class="muted">Manage vehicles and record per-tax-year odometer readings required for IRS substantiation.</p>
+<p class="muted">Record trips with full IRS §274(d) substantiation and manage vehicles.</p>
+<h2>Recent trips</h2>
+{% if recent_trips %}
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Route</th>
+      <th>Miles</th>
+      <th>Category</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for trip in recent_trips %}
+    <tr>
+      <td><a href="/trips/{{ trip.id }}">{{ trip.trip_date.isoformat() }}</a></td>
+      <td>{{ trip.origin }} → {{ trip.destination }}</td>
+      <td>{{ trip.miles }}</td>
+      <td>{{ trip.category.display_name }}{% if trip.is_late_entered() %} <span class="badge late">Late-entered</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No trips yet.</p>
+{% endif %}
+<div class="actions">
+  <a class="button" href="/trips">View all trips</a>
+  <a class="button secondary" href="/trips/new">Add trip</a>
+  <a class="button secondary" href="/vehicles">Manage vehicles</a>
+</div>
 <h2>Your vehicles</h2>
 {% if vehicles %}
 <ul>
@@ -13,8 +43,4 @@
 {% else %}
 <p class="muted">No vehicles yet.</p>
 {% endif %}
-<div class="actions">
-  <a class="button" href="/vehicles">View all vehicles</a>
-  <a class="button secondary" href="/vehicles/new">Add vehicle</a>
-</div>
 {% endblock %}

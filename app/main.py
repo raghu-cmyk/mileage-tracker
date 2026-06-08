@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Optional, Union
 
@@ -20,9 +20,11 @@ from .auth import (
     get_user_count,
     require_authenticated_user,
 )
-from .database import Base, engine, get_db
+from .categories import list_categories, seed_trip_categories
+from .database import Base, SessionLocal, engine, get_db
 from .exceptions import MileageTrackerError
 from .models import User
+from .trips import create_trip, delete_trip, get_trip, list_trips, update_trip
 from .vehicles import (
     archive_vehicle,
     create_vehicle,
@@ -38,7 +40,7 @@ from .vehicles import (
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-app = FastAPI(title="Mileage Tracker", version="0.2.0")
+app = FastAPI(title="Mileage Tracker", version="0.3.0")
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-only-change-in-production"),
@@ -58,6 +60,11 @@ if static_dir.exists():
 @app.on_event("startup")
 def on_startup() -> None:
     Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_trip_categories(db)
+    finally:
+        db.close()
 
 
 def _client_key(request: Request) -> str:
@@ -81,16 +88,35 @@ def _require_user_or_redirect(request: Request, db: Session) -> Union[User, Redi
     return require_authenticated_user(request, db)
 
 
+def _parse_optional_int(raw: Optional[str]) -> Optional[int]:
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        return int(raw.strip())
+    except ValueError:
+        return None
+
+
+def _parse_optional_date(raw: Optional[str]) -> Optional[date]:
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        return date.fromisoformat(raw.strip())
+    except ValueError:
+        return None
+
+
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request, db: Session = Depends(get_db)):
     user = _require_user_or_redirect(request, db)
     if isinstance(user, RedirectResponse):
         return user
     vehicles = list_vehicles(db)
+    recent_trips = list_trips(db)[:5]
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"user": user, "title": "Dashboard", "vehicles": vehicles},
+        {"user": user, "title": "Dashboard", "vehicles": vehicles, "recent_trips": recent_trips},
     )
 
 
@@ -337,3 +363,211 @@ def vehicle_odometer_submit(
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/trips", response_class=HTMLResponse)
+def trips_list(request: Request, db: Session = Depends(get_db)):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    vehicle_id = _parse_optional_int(request.query_params.get("vehicle_id"))
+    category_id = _parse_optional_int(request.query_params.get("category_id"))
+    date_from = _parse_optional_date(request.query_params.get("date_from"))
+    date_to = _parse_optional_date(request.query_params.get("date_to"))
+    trips = list_trips(
+        db,
+        vehicle_id=vehicle_id,
+        category_id=category_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return templates.TemplateResponse(
+        request,
+        "trips_list.html",
+        {
+            "user": user,
+            "title": "Trips",
+            "trips": trips,
+            "vehicles": list_vehicles(db),
+            "categories": list_categories(db),
+            "filters": {
+                "vehicle_id": vehicle_id,
+                "category_id": category_id,
+                "date_from": request.query_params.get("date_from", ""),
+                "date_to": request.query_params.get("date_to", ""),
+            },
+            "error": request.query_params.get("error"),
+            "success": request.query_params.get("success"),
+        },
+    )
+
+
+@app.get("/trips/new", response_class=HTMLResponse)
+def trips_new_page(request: Request, db: Session = Depends(get_db)):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    return templates.TemplateResponse(
+        request,
+        "trip_form.html",
+        {
+            "user": user,
+            "title": "Add Trip",
+            "trip": None,
+            "vehicles": list_vehicles(db),
+            "categories": list_categories(db),
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
+@app.post("/trips/new")
+def trips_new_submit(
+    request: Request,
+    trip_date: str = Form(""),
+    origin: str = Form(""),
+    destination: str = Form(""),
+    business_purpose: str = Form(""),
+    miles: str = Form(""),
+    category_id: str = Form(""),
+    vehicle_id: str = Form(""),
+    odometer_start: str = Form(""),
+    odometer_end: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    try:
+        trip = create_trip(
+            db,
+            trip_date_raw=trip_date,
+            origin=origin,
+            destination=destination,
+            business_purpose=business_purpose,
+            miles_raw=miles,
+            category_id_raw=category_id,
+            vehicle_id_raw=vehicle_id,
+            odometer_start_raw=odometer_start,
+            odometer_end_raw=odometer_end,
+        )
+    except MileageTrackerError as exc:
+        return _redirect_with_error("/trips/new", exc.message)
+    return RedirectResponse(url=f"/trips/{trip.id}?success=Trip+created", status_code=303)
+
+
+@app.get("/trips/{trip_id}", response_class=HTMLResponse)
+def trip_detail(trip_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    trip = get_trip(db, trip_id)
+    if trip is None:
+        return RedirectResponse(url="/trips?error=Trip+not+found", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "trip_detail.html",
+        {
+            "user": user,
+            "title": f"Trip on {trip.trip_date.isoformat()}",
+            "trip": trip,
+            "error": request.query_params.get("error"),
+            "success": request.query_params.get("success"),
+        },
+    )
+
+
+@app.get("/trips/{trip_id}/edit", response_class=HTMLResponse)
+def trip_edit_page(trip_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    trip = get_trip(db, trip_id)
+    if trip is None:
+        return RedirectResponse(url="/trips?error=Trip+not+found", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "trip_form.html",
+        {
+            "user": user,
+            "title": f"Edit Trip on {trip.trip_date.isoformat()}",
+            "trip": trip,
+            "vehicles": list_vehicles(db),
+            "categories": list_categories(db),
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
+@app.post("/trips/{trip_id}/edit")
+def trip_edit_submit(
+    trip_id: int,
+    request: Request,
+    trip_date: str = Form(""),
+    origin: str = Form(""),
+    destination: str = Form(""),
+    business_purpose: str = Form(""),
+    miles: str = Form(""),
+    category_id: str = Form(""),
+    vehicle_id: str = Form(""),
+    odometer_start: str = Form(""),
+    odometer_end: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    trip = get_trip(db, trip_id)
+    if trip is None:
+        return RedirectResponse(url="/trips?error=Trip+not+found", status_code=303)
+    try:
+        update_trip(
+            db,
+            trip,
+            trip_date_raw=trip_date,
+            origin=origin,
+            destination=destination,
+            business_purpose=business_purpose,
+            miles_raw=miles,
+            category_id_raw=category_id,
+            vehicle_id_raw=vehicle_id,
+            odometer_start_raw=odometer_start,
+            odometer_end_raw=odometer_end,
+        )
+    except MileageTrackerError as exc:
+        return _redirect_with_error(f"/trips/{trip_id}/edit", exc.message)
+    return RedirectResponse(url=f"/trips/{trip_id}?success=Trip+updated", status_code=303)
+
+
+@app.get("/trips/{trip_id}/delete", response_class=HTMLResponse)
+def trip_delete_page(trip_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    trip = get_trip(db, trip_id)
+    if trip is None:
+        return RedirectResponse(url="/trips?error=Trip+not+found", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "trip_delete_confirm.html",
+        {"user": user, "title": "Delete Trip", "trip": trip, "error": request.query_params.get("error")},
+    )
+
+
+@app.post("/trips/{trip_id}/delete")
+def trip_delete_submit(
+    trip_id: int,
+    request: Request,
+    confirm: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    if confirm != "yes":
+        return _redirect_with_error(f"/trips/{trip_id}/delete", "Please confirm deletion.")
+    trip = get_trip(db, trip_id)
+    if trip is None:
+        return RedirectResponse(url="/trips?error=Trip+not+found", status_code=303)
+    delete_trip(db, trip)
+    return RedirectResponse(url="/trips?success=Trip+deleted", status_code=303)

@@ -24,7 +24,7 @@
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     th, td { text-align: left; padding: .6rem; border-bottom: 1px solid #e2e8f0; }
     .badge { display: inline-block; padding: .2rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 600; background: #e2e8f0; }
-    .badge.archived { background: #fef3c7; color: #92400e; }
+    .badge.late { background: #fef3c7; color: #92400e; }
     .actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
     .inline-form { display: inline; }
     .inline-form button { margin-top: 0; }
@@ -36,6 +36,7 @@
     <nav>
       <a href="/">Dashboard</a>
       <a href="/vehicles">Vehicles</a>
+      <a href="/trips">Trips</a>
     </nav>
     <form method="post" action="/logout" class="inline-form">
       <button type="submit" class="secondary">Log out</button>

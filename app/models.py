@@ -1,10 +1,13 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+
+LATE_ENTRY_THRESHOLD_DAYS = 7
 
 
 class User(Base):
@@ -65,20 +68,48 @@ class VehicleOdometerReading(Base):
     vehicle: Mapped["Vehicle"] = relationship(back_populates="odometer_readings")
 
 
-class Trip(Base):
-    """Minimal trip stub so vehicles-with-trips archive policy can be enforced."""
+class TripCategory(Base):
+    __tablename__ = "trip_categories"
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    is_deductible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    trips: Mapped[list["Trip"]] = relationship(back_populates="category")
+
+
+class Trip(Base):
     __tablename__ = "trips"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), nullable=False, index=True)
+    category_id: Mapped[int] = mapped_column(ForeignKey("trip_categories.id"), nullable=False, index=True)
+    trip_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    origin: Mapped[str] = mapped_column(String(256), nullable=False)
+    destination: Mapped[str] = mapped_column(String(256), nullable=False)
+    business_purpose: Mapped[str] = mapped_column(Text, nullable=False)
+    miles: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    odometer_start: Mapped[int] = mapped_column(Integer, nullable=True)
+    odometer_end: Mapped[int] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
     vehicle: Mapped["Vehicle"] = relationship(back_populates="trips")
+    category: Mapped["TripCategory"] = relationship(back_populates="trips")
+
+    def is_late_entered(self) -> bool:
+        created = self.created_at.astimezone(timezone.utc).date()
+        return (created - self.trip_date).days > LATE_ENTRY_THRESHOLD_DAYS
 
 
 class AuditEvent(Base):

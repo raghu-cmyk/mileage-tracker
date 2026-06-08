@@ -21,6 +21,7 @@ from .auth import (
     require_authenticated_user,
 )
 from .categories import list_categories, seed_trip_categories
+from .rates import seed_mileage_rates
 from .database import Base, SessionLocal, engine, get_db
 from .exceptions import MileageTrackerError
 from .models import User
@@ -40,7 +41,7 @@ from .vehicles import (
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-app = FastAPI(title="Mileage Tracker", version="0.3.0")
+app = FastAPI(title="Mileage Tracker", version="0.4.0")
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-only-change-in-production"),
@@ -63,6 +64,7 @@ def on_startup() -> None:
     db = SessionLocal()
     try:
         seed_trip_categories(db)
+        seed_mileage_rates(db)
     finally:
         db.close()
 

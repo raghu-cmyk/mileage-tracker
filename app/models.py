@@ -79,6 +79,23 @@ class TripCategory(Base):
     trips: Mapped[list["Trip"]] = relationship(back_populates="category")
 
 
+class MileageRate(Base):
+    """Time-effective IRS standard mileage rate reference data."""
+
+    __tablename__ = "mileage_rates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    category_code: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    rate_cents_per_mile: Mapped[int] = mapped_column(Integer, nullable=False)
+    effective_start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    effective_end_date: Mapped[date] = mapped_column(Date, nullable=False)
+
+    def cents_per_mile(self) -> Decimal:
+        from .rates import RATE_SCALE
+
+        return Decimal(self.rate_cents_per_mile) / RATE_SCALE
+
+
 class Trip(Base):
     __tablename__ = "trips"
 

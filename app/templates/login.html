@@ -1,9 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Login</h1>
-{% if error %}
-<div class="error">{{ error }}</div>
-{% endif %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="post" action="/login">
   <label for="username">Username</label>
   <input id="username" name="username" required autocomplete="username">
@@ -12,6 +10,6 @@
   <button type="submit">Sign in</button>
 </form>
 {% if registration_open %}
-<p class="muted">No account yet? <a href="/register">Register the sole user</a></p>
+<p class="muted">No account yet? <a href="/register">Register</a></p>
 {% endif %}
 {% endblock %}

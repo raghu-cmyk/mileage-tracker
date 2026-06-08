@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "id": "20260608T173720Z_c74b15",
+  "state": "running",
+  "spec": {
+    "type": "implement",
+    "story_id": "story_c053ee",
+    "feature_id": "feat_3cad04",
+    "epic_id": "epic_8e3a45",
+    "project_id": "intent-network-mission-control",
+    "job_type": {
+      "type": "implement",
+      "description": "Domain-neutral implement primitive, overlaid for MC self-development. Execute the plan (edit, assemble, generate) producing outputs per item. When host project active, binds mission-control skill and respects write policy.",
+      "domain": "neutral",
+      "scope": "project",
+      "version": 1,
+      "required_capability": "implement",
+      "provider_policy": {
+        "preferred": "claude-code",
+        "allow_remote": false
+      },
+      "context": {
+        "references": [],
+        "skills": [
+          "mission-control"
+        ],
+        "upstream_artifacts": []
+      },
+      "loop": {
+        "mode": "interval",
+        "interval_sec": 30,
+        "max_iterations": 5,
+        "iteration_timeout_sec": 1800,
+        "overall_timeout_sec": 14400,
+        "done_when": [
+          {
+            "gate": "no_todo_markers",
+            "params": {
+              "scope": "workspace"
+            }
+          }
+        ],
+        "on_max_reached": "exhausted"
+      },
+      "prompt_template": "You are implementing for the Mission Control platform itself (self-development via Integration Kit).\n\nHost project: intent-network-mission-control\nAllowed write paths (enforced): docs/, src/, tests/, config/, .mc/, backlog/, job-types/, chains/\nForbidden: var/, .git/, __pycache__/, egg-info/\n\nImplement the assigned item from the plan.\nExecute the item using the tools and inputs bound via your context (including the mission-control skill).\nProduce output artifact for this item.\nFollow the 5-wave TRD process from .hermes/plans/ and docs/hermes-skills when doing MC platform work.\nReference contracts/ for goal/brief if attached.\nIteration {iteration}/{max_iterations}.\nPrevious: {last_summary}\nItem context from plan/fanout: {item}\n\nAfter edits, use `mc report`, and when done `mc iter-done` / `mc done` as appropriate.\nRespect the project's write policy; only edit under allowed paths.\n"
+    },
+    "job_type_provenance": {
+      "source": "project-live",
+      "package": "@intent-network-mission-control/mc",
+      "digest": "34526e8cf5996b8d",
+      "path": "/Users/raghuramreddy/intent_network /mission-control-latest/.mc/job-types/implement.yaml"
+    },
+    "prompt_template": "You are implementing for the Mission Control platform itself (self-development via Integration Kit).\n\nHost project: intent-network-mission-control\nAllowed write paths (enforced): docs/, src/, tests/, config/, .mc/, backlog/, job-types/, chains/\nForbidden: var/, .git/, __pycache__/, egg-info/\n\nImplement the assigned item from the plan.\nExecute the item using the tools and inputs bound via your context (including the mission-control skill).\nProduce output artifact for this item.\nFollow the 5-wave TRD process from .hermes/plans/ and docs/hermes-skills when doing MC platform work.\nReference contracts/ for goal/brief if attached.\nIteration {iteration}/{max_iterations}.\nPrevious: {last_summary}\nItem context from plan/fanout: {item}\n\nAfter edits, use `mc report`, and when done `mc iter-done` / `mc done` as appropriate.\nRespect the project's write policy; only edit under allowed paths.\n",
+    "context": {
+      "references": [],
+      "skills": [
+        "mission-control"
+      ],
+      "upstream_artifacts": []
+    },
+    "required_capability": "implement",
+    "provider_policy": {
+      "preferred": "claude-code",
+      "allow_remote": false
+    },
+    "model": "claude-opus-4-7",
+    "workspace": "workspaces/20260608T173720Z_c74b15",
+    "loop": {
+      "mode": "interval",
+      "interval_sec": 30,
+      "max_iterations": 5,
+      "iteration_timeout_sec": 1800,
+      "overall_timeout_sec": 14400,
+      "done_when": [
+        {
+          "gate": "no_todo_markers",
+          "params": {
+            "scope": "workspace"
+          }
+        }
+      ],
+      "on_max_reached": "exhausted",
+      "carry_context": true
+    }
+  },
+  "status": {
+    "created_at": "2026-06-08T17:37:21Z",
+    "started_at": "2026-06-08T17:37:21Z",
+    "updated_at": "2026-06-08T17:39:46Z",
+    "updated_epoch": 1780940386.775449,
+    "agent_epoch": 1780940288.5543811,
+    "finished_at": null,
+    "iteration": 1,
+    "phase": "implementing",
+    "percent": 10,
+    "message": "Starting vehicle management implementation for story_c053ee",
+    "agent": {
+      "pid": 35969,
+      "started_epoch": 1780940241.144244
+    },
+    "supervisor_heartbeat": "2026-06-08T17:39:46Z"
+  },
+  "loop_state": {
+    "iterations": [],
+    "last_summary": null
+  },
+  "result": {
+    "success": null,
+    "summary": null,
+    "outputs": []
+  },
+  "error": null,
+  "transitions": [
+    {
+      "from": "new",
+      "to": "queued",
+      "at": "2026-06-08T17:37:21Z",
+      "reason": "ingested"
+    },
+    {
+      "from": "queued",
+      "to": "running",
+      "at": "2026-06-08T17:37:21Z",
+      "reason": "claimed"
+    }
+  ]
+}

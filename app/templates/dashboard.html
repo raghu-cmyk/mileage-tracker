@@ -1,9 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Dashboard</h1>
-<p>Welcome, <strong>{{ user.username }}</strong>. You are authenticated.</p>
-<p class="muted" style="text-align:left;">Vehicle and trip management will be added in later features. This slice delivers session-based authentication with server-side authorization.</p>
-<form method="post" action="/logout">
-  <button type="submit">Log out</button>
-</form>
+<p>Welcome, <strong>{{ user.username }}</strong>.</p>
+<p class="muted">Manage vehicles and record per-tax-year odometer readings required for IRS substantiation.</p>
+<h2>Your vehicles</h2>
+{% if vehicles %}
+<ul>
+  {% for vehicle in vehicles %}
+  <li><a href="/vehicles/{{ vehicle.id }}">{{ vehicle.display_name }}</a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">No vehicles yet.</p>
+{% endif %}
+<div class="actions">
+  <a class="button" href="/vehicles">View all vehicles</a>
+  <a class="button secondary" href="/vehicles/new">Add vehicle</a>
+</div>
 {% endblock %}

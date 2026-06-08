@@ -1,6 +1,6 @@
 # Mileage Tracker
 
-Single-user web app for IRS-grade mileage substantiation. This branch adds deduction calculation and year-end summary reporting (issue #5) on top of authentication, vehicles, trip management, and time-effective mileage rates (issues #1–#4).
+Single-user web app for IRS-grade mileage substantiation. This branch adds IRS-compliant CSV and PDF export (issue #6) on top of deduction calculation and year-end summary reporting (issue #5), authentication, vehicles, trip management, and time-effective mileage rates (issues #1–#4).
 
 ## Run locally
 
@@ -12,6 +12,13 @@ python run.py
 ```
 
 Visit http://127.0.0.1:8000 — register the sole user, sign in, then manage vehicles and trips.
+
+## IRS-compliant export (issue #6)
+
+- CSV export of a selected tax year's full trip log with substantiation columns: date, origin, destination, business purpose, category, miles, vehicle, applied rate, computed amount, and late-entered flag
+- PDF export of the year summary suitable for accountant handoff (totals, by-category breakdown, per-trip deductions)
+- Exports reflect exactly what is stored; no rounding or omission that changes reported figures
+- Download links on `/summary`; endpoints at `/export/csv/{tax_year}` and `/export/pdf/{tax_year}` (authenticated)
 
 ## Deduction calculation and year-end summary (issue #5)
 

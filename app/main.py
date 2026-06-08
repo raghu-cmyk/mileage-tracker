@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -22,6 +22,7 @@ from .auth import (
 )
 from .categories import list_categories, seed_trip_categories
 from .deductions import compute_year_summary, format_cents
+from .exports import render_trip_log_csv, render_year_summary_pdf
 from .exceptions import RateResolutionError
 from .rates import seed_mileage_rates, rate_cents_per_mile_decimal
 from .database import Base, SessionLocal, engine, get_db
@@ -43,7 +44,7 @@ from .vehicles import (
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-app = FastAPI(title="Mileage Tracker", version="0.5.0")
+app = FastAPI(title="Mileage Tracker", version="0.6.0")
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-only-change-in-production"),
@@ -415,6 +416,40 @@ def year_summary_page(request: Request, db: Session = Depends(get_db)):
             "available_years": available_years,
             "error": request.query_params.get("error"),
         },
+    )
+
+
+@app.get("/export/csv/{tax_year}")
+def export_trip_log_csv(tax_year: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    try:
+        csv_text = render_trip_log_csv(db, tax_year)
+    except RateResolutionError as exc:
+        return _redirect_with_error(f"/summary?tax_year={tax_year}", exc.message)
+    filename = f"mileage-trip-log-{tax_year}.csv"
+    return Response(
+        content=csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/export/pdf/{tax_year}")
+def export_year_summary_pdf(tax_year: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user_or_redirect(request, db)
+    if isinstance(user, RedirectResponse):
+        return user
+    try:
+        pdf_bytes = render_year_summary_pdf(db, tax_year)
+    except RateResolutionError as exc:
+        return _redirect_with_error(f"/summary?tax_year={tax_year}", exc.message)
+    filename = f"mileage-summary-{tax_year}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
